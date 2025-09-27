@@ -1,110 +1,166 @@
-<!DOCTYPE html><html lang="en" >
-  <head>
+<!DOCTYPE html>
+<html lang="en">
+<head>
     <meta charset="UTF-8">
-    <title>Heart -> T Particles Animation</title>
+    <title>Heart with new Particles forming T inside (Centered)</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-      body { margin: 0; overflow: hidden; background: black; }
-      canvas { position: absolute; }
-      svg { position: absolute; display: none; }
+        body { margin: 0; overflow: hidden; background: black; }
+        canvas { position: absolute; }
+        svg { position: absolute; display: none; }
     </style>
-  </head>
-  <body>
+</head>
+<body>
     <svg viewBox="0 0 600 552">
-      <path id="heartPath" d="M300,107.77C284.68,55.67,239.76,0,162.31,0,64.83,0,0,82.08,0,171.71c0,.48,0,.95,0,1.43-.52,19.5,0,217.94,299.87,379.69v0l0,0,.05,0,0,0,0,0v0C600,391.08,600.48,192.64,600,173.14c0-.48,0-.95,0-1.43C600,82.08,535.17,0,437.69,0,360.24,0,315.32,55.67,300,107.77" fill="#ee5282"/>
-      <path id="tPath" d="M200,180 H400 M300,180 V380" stroke="#ffffff" stroke-width="1" fill="none"/>
-    </svg><script src='https://cdn.jsdelivr.net/npm/three@0.136.0/build/three.min.js'></script>
-<script src='https://cdn.jsdelivr.net/npm/three@0.136.0/examples/js/controls/OrbitControls.js'></script>
-<script src='https://unpkg.com/gsap@3/dist/gsap.min.js'></script>
+        <path id="heartPath" d="M300,107.77C284.68,55.67,239.76,0,162.31,0,64.83,0,0,82.08,0,171.71c0,.48,0,.95,0,1.43-.52,19.5,0,217.94,299.87,379.69v0l0,0,.05,0,0,0,0,0v0C600,391.08,600.48,192.64,600,173.14c0-.48,0-.95,0-1.43C600,82.08,535.17,0,437.69,0,360.24,0,315.32,55.67,300,107.77" fill="#ee5282"/>
+        <path id="tPath" d="M250,180 H350 M300,180 V320" stroke="#ffffff" stroke-width="1" fill="none"/>
+    </svg>
+    <script src='https://cdn.jsdelivr.net/npm/three@0.136.0/build/three.min.js'></script>
+    <script src='https://cdn.jsdelivr.net/npm/three@0.136.0/examples/js/controls/OrbitControls.js'></script>
+    <script src='https://unpkg.com/gsap@3/dist/gsap.min.js'></script>
 
-<script>
-  console.clear();
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 5000);
-  camera.position.z = 500;
+    <script>
+        console.clear();
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 5000);
+        camera.position.z = 500;
+    
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setPixelRatio(window.devicePixelRatio > 1 ? 2 : 1);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+    
+        const controlsWebGL = new THREE.OrbitControls(camera, renderer.domElement);
+    
+        const tl = gsap.timeline({ repeat: -1, yoyo: true });
+    
+        const heartPath = document.getElementById('heartPath');
+        const tPath = document.getElementById('tPath');
+    
+        const heartParticleCount = 1200;
+        const tParticleCount = 400;
+    
+        // SVG koordinat sisteminin merkez noktaları
+        const centerX = 600 / 2;
+        const centerY = 552 / 2;
+    
+        // --- Kalp Noktaları ---
+        const heartPoints = [];
+        const heartLength = heartPath.getTotalLength();
+        for (let i = 0; i < heartParticleCount; i++) {
+            const u = i / (heartParticleCount - 1);
+            const p = heartPath.getPointAtLength(u * heartLength);
+            // Noktaları doğrudan merkezleyerek Vector3'e dönüştür
+            heartPoints.push(new THREE.Vector3(
+                p.x - centerX + (Math.random() - 0.5) * 30,
+                -p.y + centerY + (Math.random() - 0.5) * 30,
+                (Math.random() - 0.5) * 70
+            ));
+        }
+        
+        // --- T Harfi Hedef Noktaları ---
+        const tTargetPoints = [];
+        const tLength = tPath.getTotalLength();
+        for (let i = 0; i < tParticleCount; i++) {
+             const u = i / (tParticleCount - 1);
+             const p = tPath.getPointAtLength(u * tLength);
+             // T harfi hedef noktalarını da doğrudan merkezle
+             tTargetPoints.push(new THREE.Vector3(
+                 p.x - centerX,
+                 -p.y + centerY,
+                 0
+             ));
+        }
+    
+        // --- Kalp Parçacıkları ---
+        const heartGeometry = new THREE.BufferGeometry().setFromPoints(heartPoints);
+        const heartMaterial = new THREE.PointsMaterial({ color: 0xee5282, blending: THREE.AdditiveBlending, size: 3 });
+        const heartParticles = new THREE.Points(heartGeometry, heartMaterial);
+        scene.add(heartParticles);
+    
+        // --- T Harfi Parçacıkları ---
+        const tInitialPoints = [];
+        for (let i = 0; i < tParticleCount; i++) {
+            // Başlangıç noktaları tam merkez (0,0,0) etrafında olsun
+            tInitialPoints.push(new THREE.Vector3(
+                (Math.random() - 0.5) * 20,
+                (Math.random() - 0.5) * 20,
+                (Math.random() - 0.5) * 50
+            ));
+        }
+        const tGeometry = new THREE.BufferGeometry().setFromPoints(tInitialPoints);
+        const tMaterial = new THREE.PointsMaterial({ color: 0xffffff, blending: THREE.AdditiveBlending, size: 3.5, transparent: true, opacity: 0 });
+        const tLetterParticles = new THREE.Points(tGeometry, tMaterial);
+        scene.add(tLetterParticles);
+    
+        
+        // --- Animasyonlar ---
+    
+        // Kalbin oluşma animasyonu: Parçacıklar merkezden (0,0,0) dışarı doğru hareket eder
+        for (let i = 0; i < heartPoints.length; i++) {
+            const v = heartPoints[i];
+            const dur = gsap.utils.random(1.8, 3.4);
+            tl.from(v, {
+                x: 0,
+                y: 0,
+                z: 0,
+                ease: "power2.inOut",
+                duration: dur
+            }, i * 0.002);
+        }
+    
+        const heartEnd = tl.duration();
+        const tFormationStartTime = heartEnd + 0.5;
+        const tFormationDuration = 1.5;
+    
+        // T harfi parçacıklarının ortaya çıkışı ve şekillenmesi
+        tl.to(tMaterial, { opacity: 1, duration: 0.8, ease: "power2.in" }, tFormationStartTime);
+    
+        for (let i = 0; i < tInitialPoints.length; i++) {
+            const v = tInitialPoints[i];
+            const target = tTargetPoints[i % tTargetPoints.length];
+            
+            tl.to(v, {
+                x: target.x,
+                y: target.y,
+                z: target.z + (Math.random() - 0.5) * 20,
+                duration: tFormationDuration,
+                ease: 'power2.inOut'
+            }, tFormationStartTime);
+        }
+        
+        // ================= YENİ EKLENEN BÖLÜM =================
+        // T harfi tamamen oluştuktan sonra 5 saniye bekle.
+        // Bunu, zaman çizelgesine boş bir animasyon ekleyerek yapıyoruz.
+        tl.to({}, {
+            duration: 5
+        }, tFormationStartTime + tFormationDuration);
+        // =======================================================
+        
+        // Önceki kodda T harfini kaybetmek için kullanılan bu satırı sildik.
+        // Çünkü artık yoyo efekti, 5 saniyelik beklemeden sonra geri sararak
+        // T harfinin kaybolmasını doğal bir şekilde sağlayacak.
+        // tl.to(tMaterial, { opacity: 0, duration: 0.8, ease: "power2.out" }, tl.duration() - 0.5);
+    
+    
+        gsap.fromTo(scene.rotation, { y: -0.2 }, { y: 0.2, repeat: -1, yoyo: true, ease: 'power2.inOut', duration: 4 });
+    
+        function render() {
+            requestAnimationFrame(render);
+            heartGeometry.setFromPoints(heartPoints);
+            tGeometry.setFromPoints(tInitialPoints);
+            renderer.render(scene, camera);
+        }
+    
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        window.addEventListener("resize", onWindowResize, false);
+    
+        requestAnimationFrame(render);
+    </script>
 
-  const renderer = new THREE.WebGLRenderer();
-  renderer.setPixelRatio(window.devicePixelRatio > 1 ? 2 : 1);
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  document.body.appendChild(renderer.domElement);
-
-  const controlsWebGL = new THREE.OrbitControls(camera, renderer.domElement);
-
-  const tl = gsap.timeline({ repeat: -1, yoyo: true });
-
-  const heartPath = document.getElementById('heartPath');
-  const tPath = document.getElementById('tPath');
-
-  const particleCount = 800;
-  const heartLength = heartPath.getTotalLength();
-  const tLength = tPath.getTotalLength();
-
-  const heartPoints = [];
-  const tPoints = [];
-
-  for (let i = 0; i < particleCount; i++) {
-    const u = i / (particleCount - 1);
-    const hp = heartPath.getPointAtLength(u * heartLength);
-    const tp = tPath.getPointAtLength(u * tLength);
-    heartPoints.push(hp);
-    tPoints.push(tp);
-  }
-
-  const vertices = heartPoints.map(p => new THREE.Vector3(p.x + (Math.random() - 0.5) * 30, -p.y + (Math.random() - 0.5) * 30, (Math.random() - 0.5) * 70));
-  const tVectors = tPoints.map(p => new THREE.Vector3(p.x, -p.y, 0));
-
-  const geometry = new THREE.BufferGeometry().setFromPoints(vertices);
-  const material = new THREE.PointsMaterial({ color: 0xee5282, blending: THREE.AdditiveBlending, size: 3 });
-  const particles = new THREE.Points(geometry, material);
-
-  particles.position.x -= 600 / 2;
-  particles.position.y += 552 / 2;
-  scene.add(particles);
-
-  for (let i = 0; i < vertices.length; i++) {
-    const v = vertices[i];
-    const dur = gsap.utils.random(1.8, 3.4);
-    tl.from(v, {
-      x: 600 / 2,
-      y: -552 / 2,
-      z: 0,
-      ease: "power2.inOut",
-      duration: dur
-    }, i * 0.002);
-  }
-
-  const heartEnd = tl.duration();
-
-  // T harfi kalbin icinde olacagindan, sadece rengi degistiriyoruz ve biraz sıkılaştırıyoruz
-  for (let i = 0; i < vertices.length; i++) {
-    const v = vertices[i];
-    const tv = tVectors[i % tVectors.length];
-    tl.to(v, {
-      x: tv.x,
-      y: tv.y,
-      z: (Math.random() - 0.5) * 10,
-      duration: 1.2,
-      ease: 'power2.inOut'
-    }, heartEnd + 0.3);
-  }
-
-  gsap.fromTo(scene.rotation, { y: -0.2 }, { y: 0.2, repeat: -1, yoyo: true, ease: 'power2.inOut', duration: 3 });
-
-  function render() {
-    requestAnimationFrame(render);
-    geometry.setFromPoints(vertices);
-    renderer.render(scene, camera);
-  }
-
-  function onWindowResize() {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  }
-  window.addEventListener("resize", onWindowResize, false);
-
-  requestAnimationFrame(render);
-</script>
-
-  </body>
+</body>
 </html>
