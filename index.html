@@ -1,0 +1,141 @@
+<!DOCTYPE html><html lang="en" >
+  <head>
+    <meta charset="UTF-8">
+    <title>Heart -> T Particles Animation</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      body { margin: 0; overflow: hidden; }
+      .controls { position: absolute; top: 0; left: 0; z-index: 1; }
+      canvas { position: absolute; }
+      svg { position: absolute; display: none; }
+    </style>
+  </head>
+  <body>
+    <!-- Heart path (same as original) -->
+    <svg viewBox="0 0 600 552">
+      <path id="heartPath" d="M300,107.77C284.68,55.67,239.76,0,162.31,0,64.83,0,0,82.08,0,171.71c0,.48,0,.95,0,1.43-.52,19.5,0,217.94,299.87,379.69v0l0,0,.05,0,0,0,0,0v0C600,391.08,600.48,192.64,600,173.14c0-.48,0-.95,0-1.43C600,82.08,535.17,0,437.69,0,360.24,0,315.32,55.67,300,107.77" fill="#ee5282"/>
+      <!-- Simple 'T' path centered inside the same viewbox -->
+      <!-- horizontal bar then vertical stem -->
+      <path id="tPath" d="M140,90 H460 M300,90 V460" stroke="#ffffff" stroke-width="1" fill="none"/>
+    </svg><script src='https://cdn.jsdelivr.net/npm/three@0.136.0/build/three.min.js'></script>
+<script src='https://cdn.jsdelivr.net/npm/three@0.136.0/examples/js/controls/OrbitControls.js'></script>
+<script src='https://unpkg.com/gsap@3/dist/gsap.min.js'></script>
+
+<script>
+  console.clear();
+  /* SETUP */
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 5000);
+  camera.position.z = 500;
+
+  const renderer = new THREE.WebGLRenderer();
+  renderer.setPixelRatio(window.devicePixelRatio > 1 ? 2 : 1);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  /* CONTROLS */
+  const controlsWebGL = new THREE.OrbitControls(camera, renderer.domElement);
+
+  /* PARTICLES + TIMELINE */
+  const tl = gsap.timeline({ repeat: -1, yoyo: true });
+
+  const heartPath = document.getElementById('heartPath');
+  const tPath = document.getElementById('tPath');
+
+  // We'll sample a fixed number of points so heart and T have the same particle count
+  const particleCount = 800; // lower this if performance is bad
+
+  const heartLength = heartPath.getTotalLength();
+  const tLength = tPath.getTotalLength();
+
+  const heartPoints = [];
+  const tPoints = [];
+
+  for (let i = 0; i < particleCount; i++) {
+    const u = i / (particleCount - 1);
+    const hp = heartPath.getPointAtLength(u * heartLength);
+    const tp = tPath.getPointAtLength(u * tLength);
+    heartPoints.push(hp);
+    tPoints.push(tp);
+  }
+
+  // Create vertex vectors from heart points (Three.js coordinates: x, -y, z)
+  const vertices = heartPoints.map(p => {
+    const v = new THREE.Vector3(p.x + (Math.random() - 0.5) * 30, -p.y + (Math.random() - 0.5) * 30, (Math.random() - 0.5) * 70);
+    return v;
+  });
+
+  // Create target vectors for T (same coordinate transform)
+  const tVectors = tPoints.map(p => new THREE.Vector3(p.x, -p.y, 0));
+
+  const geometry = new THREE.BufferGeometry().setFromPoints(vertices);
+  const material = new THREE.PointsMaterial({ color: 0xee5282, blending: THREE.AdditiveBlending, size: 3 });
+  const particles = new THREE.Points(geometry, material);
+
+  // Offset the particles in the scene based on the viewbox values (same as original)
+  particles.position.x -= 600 / 2;
+  particles.position.y += 552 / 2;
+  scene.add(particles);
+
+  // --- TIMELINE: 1) appear into heart, 2) after heart finished -> form T ---
+  // 1) Animate each vector from center into its heart position (using .from)
+  for (let i = 0; i < vertices.length; i++) {
+    const v = vertices[i];
+    // Random duration so the assembly looks organic
+    const dur = gsap.utils.random(1.8, 3.4);
+    tl.from(v, {
+      x: 600 / 2, // center x (in svg space)
+      y: -552 / 2, // center y (in svg space)
+      z: 0,
+      ease: "power2.inOut",
+      duration: dur
+    }, i * 0.002);
+  }
+
+  // After the "from" animations are all added, capture end time of the timeline
+  // so we can start moving particles to the T shape from that moment onward.
+  // gsap's tl.duration() returns total duration so far.
+  const heartEnd = tl.duration();
+
+  // 2) Move each vector to the T target. Use a small stagger so it looks like it's morphing.
+  for (let i = 0; i < vertices.length; i++) {
+    const v = vertices[i];
+    const tv = tVectors[i % tVectors.length];
+    // Slight jitter on the T target so particles don't sit perfectly grid-like
+    const jitter = (Math.random() - 0.5) * 6;
+    tl.to(v, {
+      x: tv.x + jitter,
+      y: tv.y + jitter,
+      z: (Math.random() - 0.5) * 10,
+      duration: 1.8,
+      ease: 'power2.inOut'
+    }, heartEnd + i * 0.002 + 0.05);
+  }
+
+  // Make the whole scene slowly rotate back and forth
+  gsap.fromTo(scene.rotation, { y: -0.2 }, { y: 0.2, repeat: -1, yoyo: true, ease: 'power2.inOut', duration: 3 });
+
+  /* RENDERING */
+  function render() {
+    requestAnimationFrame(render);
+    // Update geometry from animated vertices
+    geometry.setFromPoints(vertices);
+    renderer.render(scene, camera);
+  }
+
+  /* EVENTS */
+  function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+  window.addEventListener("resize", onWindowResize, false);
+
+  requestAnimationFrame(render);
+
+  // Optional: debugging / tweak controls via console
+  // window.tl = tl; window.vertices = vertices; window.tVectors = tVectors;
+</script>
+
+  </body>
+</html>
